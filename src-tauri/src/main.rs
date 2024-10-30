@@ -4,14 +4,29 @@
 mod command;
 mod fns;
 mod tray;
+mod modules {
+    pub mod config;
+    pub mod cache_manager;
+}
+mod extensions {
+    pub mod clipboard;
+    pub mod extension;
+    pub mod extension_manager;
+}
 
 use tauri::Manager;
+use crate::extensions::extension_manager::EXTENSION_MANAGER;
 
 fn main() {
+    let extension_manager = &*EXTENSION_MANAGER;
+    println!("{}", extension_manager.to_string());
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             command::init,
-            command::show_menubar_panel
+            command::show_menubar_panel,
+            command::get_extensions,
+            command::set_extensions
         ])
         .plugin(tauri_nspanel::init())
         .setup(|app| {
