@@ -22,7 +22,7 @@ pub struct CacheExtension {
 
 #[derive(Debug)]
 pub struct CacheManager {
-  extensions: Vec<CacheExtension>,
+  pub extensions: Vec<CacheExtension>,
   config: Config,
 }
 
