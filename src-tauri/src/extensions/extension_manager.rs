@@ -2,13 +2,16 @@ use serde_json::json;
 use std::sync::LazyLock;
 use crate::modules::cache_manager::{self, CacheManager};
 
-use super::{clipboard::CLIPBOARD, extension::Extension};
+use super::{clipboard::CLIPBOARD, extension::{Extension, ShortcutHandler}};
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
 use std::collections::HashMap;
 
 pub struct ExtensionManager<'a> {
   extensions: Vec<&'a Extension>,
   cache_manager: CacheManager,
+
+  handler_mapper: HashMap<String, &'a ShortcutHandler>,
+  shortcut_mapper: HashMap<Shortcut, &'a ShortcutHandler>,
 }
 
 impl<'a> ExtensionManager<'a> {
@@ -16,6 +19,8 @@ impl<'a> ExtensionManager<'a> {
     ExtensionManager {
       extensions: vec![],
       cache_manager: CacheManager::new(None),
+      handler_mapper: HashMap::new(),
+      shortcut_mapper: HashMap::new(),
     }
   }
 
@@ -69,7 +74,45 @@ impl<'a> ExtensionManager<'a> {
   }
 
   pub fn init(&mut self) {
-      self.cache_manager.init();
+    self.cache_manager.init();
+    self.build_handler_mapper();
+    self.build_shortcut_mapper();
+  }
+
+  pub fn build_handler_mapper(&mut self) {
+    self.handler_mapper.clear();
+    self.extensions.clone().iter().for_each(|ext| {
+      ext.shortcuts.iter().for_each(|shortcut| {
+        self.handler_mapper.insert(self.build_key(ext.name.clone(), shortcut.name.clone()), shortcut);
+      });
+    });
+  }
+
+  pub fn build_shortcut_mapper(&mut self) {
+    self.shortcut_mapper.clear();
+    let extensions = self.cache_manager.extensions.clone();
+    extensions.iter().for_each(|ext| {
+      if !ext.enabled {
+        return;
+      }
+
+      ext.shortcuts.iter().for_each(|shortcut| {
+        let key = self.build_key(ext.name.clone(), shortcut.name.clone());
+        if let Some(shortcut_instance) = self.handler_mapper.get(&key) {
+          self.shortcut_mapper.insert(shortcut.shortcut.clone(), shortcut_instance);
+        } 
+      });
+    });
+  }
+
+  fn build_key(&self, extension_name: String, shortcut_name: String) -> String {
+    format!("{}-{}", extension_name, shortcut_name)
+  }
+
+  pub fn listen(&self, shortcut: &Shortcut) {
+    if let Some(shortcut_instance) = self.shortcut_mapper.get(shortcut) {
+      shortcut_instance.handle();
+    }
   }
 }
 
