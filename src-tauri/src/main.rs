@@ -15,6 +15,7 @@ mod extensions {
 }
 
 use tauri::Manager;
+use tauri_plugin_global_shortcut::ShortcutState;
 use crate::extensions::extension_manager::EXTENSION_MANAGER;
 
 fn main() {
@@ -33,6 +34,17 @@ fn main() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let app_handle = app.app_handle();
+            app_handle.plugin(
+                tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(|app, shortcut, event| {
+                            println!("{:?}", shortcut);
+                            println!("{:?}", event);
+                            if event.state == ShortcutState::Pressed  {
+                                extension_manager.listen(shortcut);
+                            }
+                        })
+                        .build(),
+            )?;
 
             tray::create(app_handle)?;
 
